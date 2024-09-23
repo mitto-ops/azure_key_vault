@@ -5,8 +5,8 @@ require_relative '../../../puppet_x/tragiccode/onprem'
 Puppet::Functions.create_function(:'azure_key_vault::lookup') do
   dispatch :lookup_key do
     param 'Variant[String, Numeric]', :secret_name
-    param 'Array[String]', :vault_names
     param 'Struct[{
+      vault_names => Array[String],
       vault_api_version => String,
       Optional[metadata_api_version] => String,
       Optional[onprem_agent_api_version] => String,
@@ -77,7 +77,7 @@ Puppet::Functions.create_function(:'azure_key_vault::lookup') do
     end
 
     secret_value = nil
-    vault_names.each do |vault_name|
+    options['vault_names'].each do |vault_name|
       begin
         secret_value = TragicCode::Azure.get_secret(
           vault_name,
