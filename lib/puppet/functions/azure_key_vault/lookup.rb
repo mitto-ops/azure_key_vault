@@ -5,8 +5,8 @@ require_relative '../../../puppet_x/tragiccode/onprem'
 Puppet::Functions.create_function(:'azure_key_vault::lookup') do
   dispatch :lookup_key do
     param 'Variant[String, Numeric]', :secret_name
+    param 'Array[String]', :vault_names
     param 'Struct[{
-      vault_name => String,
       vault_api_version => String,
       Optional[metadata_api_version] => String,
       Optional[onprem_agent_api_version] => String,
@@ -75,21 +75,26 @@ Puppet::Functions.create_function(:'azure_key_vault::lookup') do
       end
       context.cache('access_token', access_token)
     end
-    begin
-      secret_value = TragicCode::Azure.get_secret(
-        options['vault_name'],
-        normalized_secret_name,
-        options['vault_api_version'],
-        access_token,
-        '',
-      )
-    rescue RuntimeError => e
-      Puppet.warning(e.message)
-      secret_value = nil
+
+    secret_value = nil
+    vault_names.each do |vault_name|
+      begin
+        secret_value = TragicCode::Azure.get_secret(
+          vault_name,
+          normalized_secret_name,
+          options['vault_api_version'],
+          access_token,
+          '',
+        )
+        # Stop searching other vaults if secret is found
+        break unless secret_value.nil?
+      rescue RuntimeError => e
+        Puppet.warning(e.message)
+      end
     end
 
     if secret_value.nil?
-      raise Puppet::Error, "The secret '#{secret_name}' could not be found in a vault '#{options['vault_name']}'!!!"
+      raise Puppet::Error, "The secret '#{secret_name}' could not be found !!!"
     end
 
     if return_sensitive_type
